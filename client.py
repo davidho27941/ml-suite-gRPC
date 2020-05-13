@@ -17,12 +17,13 @@ SERVER_PORT = 5000
 # Number of dummy images to send
 N_DUMMY_IMAGES = 1000
 N_IMAGENET_IMAGES = 496
+N_REQUEST = 10
 
 INPUT_NODE_NAME = "data"
 OUTPUT_NODE_NAME = "fc1000/Reshape_output"
 
 STACK = True
-BATCH_SIZE = 4
+BATCH_SIZE = 12
 
 IMAGE_LIST = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-aux/val.txt"
 IMAGE_DIR = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-val-min"
@@ -102,47 +103,124 @@ def imagenet_client(file_name, n, print_interval=50):
         batch_size=BATCH_SIZE
     ))
 
-    assert(n % BATCH_SIZE == 0)
-
-    start_time = time.time()
-    requests = list(imagenet_request_generator(file_name, n))
-    total_time = time.time() - start_time
-    print("Image load time: {time:.2f}".format(time=total_time))
-    start_time = time.time()
-    predictions = []
-    # Connect to server
-    with grpc.insecure_channel('{address}:{port}'.format(address=SERVER_ADDRESS,
+    #assert(n % BATCH_SIZE == 0)
+    reminder = n % BATCH_SIZE
+    
+    if reminder == 0:
+        start_time = time.time()
+        requests = list(imagenet_request_generator(file_name, n))
+        total_time = time.time() - start_time
+        print("Image load time: {time:.2f}".format(time=total_time))
+        start_time = time.time()
+        predictions = []
+        # Connect to server
+        with grpc.insecure_channel('{address}:{port}'.format(address=SERVER_ADDRESS,
                                                          port=SERVER_PORT)) as channel:
-        stub = inference_server_pb2_grpc.InferenceStub(channel)
+            stub = inference_server_pb2_grpc.InferenceStub(channel)
+  
+            # Make a call
+            def it():
+                for request in requests:
+                    yield request
+            responses = stub.Inference(it())
 
-        # Make a call
-        def it():
-            for request in requests:
-                yield request
-        responses = stub.Inference(it())
+            # Get responses
+            for i, response in enumerate(responses):
+                if i % print_interval == 0:
+                    print(i)
+                response = request_wrapper.protoToDict(response,
+                                                  {OUTPUT_NODE_NAME: (BATCH_SIZE, 1000)})
+                prediction = np.argmax(response[OUTPUT_NODE_NAME], axis=1)
+                predictions.append(prediction)
+        total_time = time.time() - start_time
+        print("Sent {n} images in {time:.3f} seconds ({speed:.3f} images/s), excluding image load time"
+              .format(n=n,
+                      time=total_time,
+                      speed=float(n) / total_time))
+        labels = list(imagenet_label_generator(file_name, n))
+        # print(predictions)
+        # print(labels)
+        predictions = np.array(predictions).reshape((-1))
+        labels = np.array(labels).reshape((-1))
+        # print(predictions)
+        # print(labels)
+        print("Accuracy: {acc:.4}".format(acc=metrics.accuracy_score(labels, predictions)))
+        return total_time, float(n) / total_time, metrics.accuracy_score(labels, predictions)
+    elif reminder != 0:
+        main_part = n - reminder
+        extra_part = BATCH_SIZE
+    
+        start_time = time.time()
+        requests_main = list(imagenet_request_generator(file_name, main_part))
+        time_main = time.time() - start_time
+    
+        time_sub = time.time()
+        requests_sub = list(imagenet_request_generator(file_name, extra_part))
+        time_sub = ( time.time() - time_sub ) * ( reminder/extra_part)
+        total_time = time_main + time_sub 
+    
+        print("Image load time: {time:.2f}".format(time=total_time))
+        start_time = time.time()
+        predictions = []
+    
+        # Connect to server
+        with grpc.insecure_channel('{address}:{port}'.format(address=SERVER_ADDRESS,
+                                                         port=SERVER_PORT)) as channel:
+            stub = inference_server_pb2_grpc.InferenceStub(channel)
 
-        # Get responses
-        for i, response in enumerate(responses):
-            if i % print_interval == 0:
-                print(i)
-            response = request_wrapper.protoToDict(response,
-                                              {OUTPUT_NODE_NAME: (BATCH_SIZE, 1000)})
-            prediction = np.argmax(response[OUTPUT_NODE_NAME], axis=1)
-            predictions.append(prediction)
-    total_time = time.time() - start_time
-    print("Sent {n} images in {time:.3f} seconds ({speed:.3f} images/s), excluding image load time"
-          .format(n=n,
-                  time=total_time,
-                  speed=float(n) / total_time))
-    labels = list(imagenet_label_generator(file_name, n))
-    # print(predictions)
-    # print(labels)
-    predictions = np.array(predictions).reshape((-1))
-    labels = np.array(labels).reshape((-1))
-    # print(predictions)
-    # print(labels)
-    print("Accuracy: {acc:.4}".format(acc=metrics.accuracy_score(labels, predictions)))
+            # Make a call
+            def it(requests):
+                for request in requests:
+                    yield request
+            responses_sub = stub.Inference(it(requests_sub))
 
+            # Get responses
+            for i, response in enumerate(responses_main):
+                if i % print_interval == 0:
+                    print(i)
+                response = request_wrapper.protoToDict(response,
+                                                  {OUTPUT_NODE_NAME: (BATCH_SIZE, 1000)})
+                prediction = np.argmax(response[OUTPUT_NODE_NAME], axis=1)
+                predictions.append(prediction)
+        time_main = start_time - time.time()
+        start_time = time.time()
+        with grpc.insecure_channel('{address}:{port}'.format(address=SERVER_ADDRESS,
+                                                         port=SERVER_PORT)) as channel:
+            stub = inference_server_pb2_grpc.InferenceStub(channel)
+
+            # Make a call
+            def it(requests):
+                for request in requests:
+                    yield request
+            responses_sub = stub.Inference(it(requests_sub))
+
+            # Get responses
+            for i, response in enumerate(responses_sub):
+                if i % print_interval == 0:
+                    print(i)
+                response = request_wrapper.protoToDict(response,
+                                                  {OUTPUT_NODE_NAME: (BATCH_SIZE, 1000)})
+                prediction = np.argmax(response[OUTPUT_NODE_NAME], axis=1)
+                predictions.append(prediction)
+        time_sub = time.time() - start_time
+        total_time = time_sub * (reminder/extra_part ) + time_main
+        for i in range(reminder):
+            prediction.pop( n - reminer )
+        
+        print("Sent {n} images in {time:.3f} seconds ({speed:.3f} images/s), excluding image load time"
+              .format(n=main_part+extra_part-reminder,
+                      time=total_time,
+                      speed=float(n) / total_time))
+        labels = list(imagenet_label_generator(file_name, n))
+        
+        # print(predictions)
+        # print(labels)
+        predictions = np.array(predictions).reshape((-1))
+        labels = np.array(labels).reshape((-1))
+        # print(predictions)
+        # print(labels)
+        print("Accuracy: {acc:.4}".format(acc=metrics.accuracy_score(labels, predictions)))
+        return total_time, float(n) / total_time, metrics.accuracy_score(labels, predictions)
 
 def dummy_client(n, print_interval=50):
     '''
@@ -177,4 +255,12 @@ def dummy_client(n, print_interval=50):
 
 if __name__ == '__main__':
     # dummy_client(N_DUMMY_IMAGES)
-    imagenet_client(IMAGE_LIST, N_IMAGENET_IMAGES)
+    time = np.zeros(N_REQUEST)
+    speed = np.zeros(N_REQUEST)
+    accuracy = np.zeros(N_REQUEST)
+    for i in range(N_REQUEST):
+        
+        time[i], speed[i], accuracy[i] = imagenet_client(IMAGE_LIST, N_IMAGENET_IMAGES)
+    with open('log.txt', 'w') as f:
+        for i in range(N_REQUEST):
+            f.write("{0:.3f},{1:.3f},{2:.3f}".format(time[i], speed[i], accuracy[i]))
