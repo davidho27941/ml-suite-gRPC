@@ -172,6 +172,7 @@ def imagenet_client(file_name, n, print_interval=50):
             def it(requests):
                 for request in requests:
                     yield request
+            responses_main = stub.Inference(it(requests_main))
             responses_sub = stub.Inference(it(requests_sub))
 
             # Get responses
@@ -255,12 +256,12 @@ def dummy_client(n, print_interval=50):
 
 if __name__ == '__main__':
     # dummy_client(N_DUMMY_IMAGES)
-    time = np.zeros(N_REQUEST)
+    duration = np.zeros(N_REQUEST)
     speed = np.zeros(N_REQUEST)
     accuracy = np.zeros(N_REQUEST)
     for i in range(N_REQUEST):
         
-        time[i], speed[i], accuracy[i] = imagenet_client(IMAGE_LIST, N_IMAGENET_IMAGES)
+        duration[i], speed[i], accuracy[i] = imagenet_client(IMAGE_LIST, N_IMAGENET_IMAGES)
     with open('log.txt', 'w') as f:
         for i in range(N_REQUEST):
-            f.write("{0:.3f},{1:.3f},{2:.3f}".format(time[i], speed[i], accuracy[i]))
+            f.write("{0:.3f},{1:.3f},{2:.3f}\n".format(duration[i], speed[i], accuracy[i]))
