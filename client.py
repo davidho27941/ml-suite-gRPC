@@ -23,7 +23,7 @@ INPUT_NODE_NAME = "data"
 OUTPUT_NODE_NAME = "fc1000/Reshape_output"
 
 STACK = True
-BATCH_SIZE = 12
+BATCH_SIZE = 3
 
 IMAGE_LIST = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-aux/val.txt"
 IMAGE_DIR = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-val-min"
@@ -149,11 +149,11 @@ def imagenet_client(file_name, n, print_interval=50):
     elif reminder != 0:
         main_part = n - reminder
         extra_part = BATCH_SIZE
-    
+        print("main part:{0}, extra_part:{1}".format(main_part, extra_part))
         start_time = time.time()
         requests_main = list(imagenet_request_generator(file_name, main_part))
         time_main = time.time() - start_time
-    
+
         time_sub = time.time()
         requests_sub = list(imagenet_request_generator(file_name, extra_part))
         time_sub = ( time.time() - time_sub ) * ( reminder/extra_part)
