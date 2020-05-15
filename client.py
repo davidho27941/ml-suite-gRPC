@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+
 import inference_server_pb2_grpc
 
 import request_wrapper
@@ -17,13 +18,13 @@ SERVER_PORT = 5000
 # Number of dummy images to send
 N_DUMMY_IMAGES = 1000
 N_IMAGENET_IMAGES = 496
-N_REQUEST = 10
+N_REQUEST = 100
 
 INPUT_NODE_NAME = "data"
 OUTPUT_NODE_NAME = "fc1000/Reshape_output"
 
 STACK = True
-BATCH_SIZE = 16
+BATCH_SIZE = 5
 
 IMAGE_LIST = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-aux/val.txt"
 IMAGE_DIR = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-val-min"
@@ -206,7 +207,7 @@ def imagenet_client(file_name, n, print_interval=50):
         time_sub = time.time() - start_time
         total_time = time_sub * (reminder/extra_part ) + time_main
         for i in range(reminder):
-            prediction.pop( n - reminer )
+            predictions = np.delete(predictions, main_part + extra_part - i - 1  )
         
         print("Sent {n} images(with {extra} images for a full batch) in {time:.3f} seconds ({speed:.3f} images/s), excluding image load time"
               .format(n=main_part+extra_part,
