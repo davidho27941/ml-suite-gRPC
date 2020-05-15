@@ -23,7 +23,7 @@ INPUT_NODE_NAME = "data"
 OUTPUT_NODE_NAME = "fc1000/Reshape_output"
 
 STACK = True
-BATCH_SIZE = 3
+BATCH_SIZE = 16
 
 IMAGE_LIST = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-aux/val.txt"
 IMAGE_DIR = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-val-min"
@@ -173,7 +173,7 @@ def imagenet_client(file_name, n, print_interval=50):
                 for request in requests:
                     yield request
             responses_main = stub.Inference(it(requests_main))
-            responses_sub = stub.Inference(it(requests_sub))
+#            responses_sub = stub.Inference(it(requests_sub))
 
             # Get responses
             for i, response in enumerate(responses_main):
@@ -183,7 +183,7 @@ def imagenet_client(file_name, n, print_interval=50):
                                                   {OUTPUT_NODE_NAME: (BATCH_SIZE, 1000)})
                 prediction = np.argmax(response[OUTPUT_NODE_NAME], axis=1)
                 predictions.append(prediction)
-        time_main = start_time - time.time()
+        time_main = time.time() - start_time
         start_time = time.time()
         with grpc.insecure_channel('{address}:{port}'.format(address=SERVER_ADDRESS,
                                                          port=SERVER_PORT)) as channel:
@@ -208,8 +208,9 @@ def imagenet_client(file_name, n, print_interval=50):
         for i in range(reminder):
             prediction.pop( n - reminer )
         
-        print("Sent {n} images in {time:.3f} seconds ({speed:.3f} images/s), excluding image load time"
-              .format(n=main_part+extra_part-reminder,
+        print("Sent {n} images(with {extra} images for a full batch) in {time:.3f} seconds ({speed:.3f} images/s), excluding image load time"
+              .format(n=main_part+extra_part,
+                      extra=BATCH_SIZE - reminder,
                       time=total_time,
                       speed=float(n) / total_time))
         labels = list(imagenet_label_generator(file_name, n))
@@ -262,6 +263,6 @@ if __name__ == '__main__':
     for i in range(N_REQUEST):
         
         duration[i], speed[i], accuracy[i] = imagenet_client(IMAGE_LIST, N_IMAGENET_IMAGES)
-    with open('log.txt', 'w') as f:
+    with open('./log/AWS_F1/localhost/log_batch_size_{0}.txt'.format(BATCH_SIZE), 'w') as f:
         for i in range(N_REQUEST):
             f.write("{0:.3f},{1:.3f},{2:.3f}\n".format(duration[i], speed[i], accuracy[i]))
