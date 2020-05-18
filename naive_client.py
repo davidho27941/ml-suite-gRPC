@@ -3,14 +3,14 @@ from __future__ import print_function
 import inference_server_pb2_grpc
 
 import request_wrapper
-
+import sys
 import grpc
 import numpy as np
 import time
 
 # gRPC server info
 
-SERVER_ADDRESS = "localhost"
+SERVER_ADDRESS = "18.236.140.120"
 SERVER_PORT = 5000
 
 # Number of dummy images to send
@@ -21,7 +21,7 @@ INPUT_NODE_NAME = "data"
 OUTPUT_NODE_NAME = "fc1000/Reshape_output"
 
 STACK = False
-BATCH_SIZE = 6
+BATCH_SIZE = 16
 
 IMAGE_LIST = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-aux/val.txt"
 IMAGE_DIR = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-val-min"
@@ -70,7 +70,7 @@ def dummy_client(n, print_interval=50):
             single_time.append( latency )
             speed.append( latency ** -1  )
             print("Request {0}/1000, {1} images finished in {2} seconds, speed: {3} images/s".format(i, BATCH_SIZE, BATCH_SIZE*latency, latency ** -1))
-        with open('./log/AWS_localhost/log_batch_{0}.txt'.format(BATCH_SIZE), 'w') as f:
+        with open('./log/ailab_remote/log_batch_{0}.txt'.format(BATCH_SIZE), 'w') as f:
             for i in range(len(single_time)):
                 f.writelines("{0:.3f}, {1:.3f}\n".format(single_time[i], speed[i]))
     total_time = time.time() - start_time
