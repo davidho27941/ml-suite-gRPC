@@ -20,7 +20,7 @@ INPUT_NODE_NAME = "data"
 OUTPUT_NODE_NAME = "fc1000/Reshape_output"
 
 STACK = False
-BATCH_SIZE = 4
+BATCH_SIZE = 16
 
 IMAGE_LIST = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-aux/val.txt"
 IMAGE_DIR = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-val-min"
@@ -69,7 +69,7 @@ def dummy_client(n, print_interval=50):
             single_time.append(duration_end)
             speed.append( float(BATCH_SIZE)/duration_end )
             print("Request {0}/100, {1} images finished in {2} seconds, speed: {3} images/s".format(i, BATCH_SIZE, duration_end, float(BATCH_SIZE)/duration_end))
-        with open('log_batch_{0}.txt'.format(BATCH_SIZE), 'w') as f:
+        with open('./log/AWS_localhost/log_batch_{0}.txt'.format(BATCH_SIZE), 'w') as f:
             for i in range(len(single_time)):
                 f.writelines("{0:.3f}, {1:.3f}\n".format(single_time[i], speed[i]))
     total_time = time.time() - start_time
