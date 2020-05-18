@@ -15,12 +15,13 @@ SERVER_PORT = 5000
 
 # Number of dummy images to send
 N_DUMMY_IMAGES = 1000
+NUM_OF_CALL = 1000 
 
 INPUT_NODE_NAME = "data"
 OUTPUT_NODE_NAME = "fc1000/Reshape_output"
 
 STACK = False
-BATCH_SIZE = 16
+BATCH_SIZE = 6
 
 IMAGE_LIST = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-aux/val.txt"
 IMAGE_DIR = "~/CK-TOOLS/dataset-imagenet-ilsvrc2012-val-min"
@@ -59,16 +60,16 @@ def dummy_client(n, print_interval=50):
         stub = inference_server_pb2_grpc.InferenceStub(channel)
         single_time = []
         speed = []
-        NUM_OF_CALL = 100 
         # Make a call
         for i in range(NUM_OF_CALL):
             duration_start = time.time()
             responses = stub.Inference(empty_image_generator(BATCH_SIZE))
             responses = list(responses)
             duration_end = time.time() - duration_start
-            single_time.append(duration_end)
-            speed.append( float(BATCH_SIZE)/duration_end )
-            print("Request {0}/100, {1} images finished in {2} seconds, speed: {3} images/s".format(i, BATCH_SIZE, duration_end, float(BATCH_SIZE)/duration_end))
+            latency = duration_end / BATCH_SIZE
+            single_time.append( latency )
+            speed.append( latency ** -1  )
+            print("Request {0}/1000, {1} images finished in {2} seconds, speed: {3} images/s".format(i, BATCH_SIZE, BATCH_SIZE*latency, latency ** -1))
         with open('./log/AWS_localhost/log_batch_{0}.txt'.format(BATCH_SIZE), 'w') as f:
             for i in range(len(single_time)):
                 f.writelines("{0:.3f}, {1:.3f}\n".format(single_time[i], speed[i]))
