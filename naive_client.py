@@ -57,17 +57,28 @@ def dummy_client(n, print_interval=50):
     with grpc.insecure_channel('{address}:{port}'.format(address=SERVER_ADDRESS,
                                                          port=SERVER_PORT)) as channel:
         stub = inference_server_pb2_grpc.InferenceStub(channel)
-
+        single_time = []
+        speed = []
+        NUM_OF_CALL = 100 
         # Make a call
-        for i in range(n // BATCH_SIZE):
+        for i in range(NUM_OF_CALL):
+            duration_start = time.time()
             responses = stub.Inference(empty_image_generator(BATCH_SIZE))
             responses = list(responses)
+            duration_end = time.time() - duration_start
+            single_time.append(duration_end)
+            speed.append( float(BATCH_SIZE)/duration_end )
+            print("Request {0}/100, {1} images finished in {2} seconds, speed: {3} images/s".format(i, BATCH_SIZE, duration_end, float(BATCH_SIZE)/duration_end))
+        with open('log_batch_{0}.txt'.format(BATCH_SIZE), 'w') as f:
+            for i in range(len(single_time)):
+                f.writelines("{0:.3f}, {1:.3f}\n".format(single_time[i], speed[i]))
     total_time = time.time() - start_time
     print("{n} images in {time} seconds ({speed} images/s)"
-          .format(n=n,
+          .format(n=NUM_OF_CALL * BATCH_SIZE,
                   time=total_time,
                   speed=float(n) / total_time))
-
+    
 
 if __name__ == '__main__':
+    
     dummy_client(N_DUMMY_IMAGES)
