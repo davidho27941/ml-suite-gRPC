@@ -206,8 +206,8 @@ def imagenet_client(file_name, n, print_interval=50):
                 predictions.append(prediction)
         time_sub = time.time() - start_time
         total_time = time_sub * (reminder/extra_part ) + time_main
-        for i in range(reminder):
-            predictions = np.delete(predictions, main_part + extra_part - i - 1  )
+        for i in range(1, extra_part):
+            predictions = np.delete(predictions, main_part + extra_part - i   )
         
         print("Sent {n} images(with {extra} images for a full batch) in {time:.3f} seconds ({speed:.3f} images/s), excluding image load time"
               .format(n=main_part+extra_part,
