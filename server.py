@@ -27,7 +27,10 @@ def start_grpc_server(port, fpgaRT, output_buffers, input_shapes, fcWeight, fcBi
     print("Using {n_stream} streams".format(n_stream=N_STREAMS))
 
     # Configure server
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=GRPC_WORKER_COUNT))
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=GRPC_WORKER_COUNT), options=[
+          ('grpc.max_send_message_length', 50 * 1024 * 1024),
+          ('grpc.max_receive_message_length', 50 * 1024 * 1024)
+      ])
     servicer = grpc_server.InferenceServicer(fpgaRT=fpgaRT,
                                              output_buffers=output_buffers,
                                              n_streams=N_STREAMS,
